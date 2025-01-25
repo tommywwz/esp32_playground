@@ -6,17 +6,18 @@
 
 Adafruit_MPU6050 mpu;
 
-double pitch, roll;
+volatile double pitch, roll = 0;
+volatile double accX, accY, accZ = 0;
 
-void getAngle(int Ax, int Ay, int Az)
+void getAngle(const sensors_event_t& accel)
 {
-    double x = Ax;
-    double y = Ay;
-    double z = Az;
+    double x = accel.acceleration.x;
+    double y = accel.acceleration.y;
+    double z = accel.acceleration.z;
     pitch = atan(x / sqrt((y * y) + (z * z)));
     roll = atan(y / sqrt((x * x) + (z * z)));
-    pitch = pitch * (180.0 / 3.14);
-    roll = roll * (180.0 / 3.14);
+    pitch = pitch * (180.0 / PI);
+    roll = roll * (180.0 / PI);
 }
 
 void setupGyro()

@@ -131,7 +131,7 @@ void myTestPattern()
     }
 
     display.display();
-    delay(1000);
+    delay(500);
     // Invert and restore display, pausing in-between
     testInvertDisplay();
 
@@ -146,7 +146,7 @@ void myTestPattern()
         display.drawLine(halfWidth, halfHeight, x, y, SSD1306_WHITE);
     }
     display.display();
-    delay(1000);
+    delay(500);
     testInvertDisplay();
 
     // draw concentric circles with lines cut it into 8 parts
@@ -163,7 +163,7 @@ void myTestPattern()
         display.drawLine(halfWidth, halfHeight, x, y, SSD1306_WHITE);
     }
     display.display();
-    delay(1000);
+    delay(500);
     testInvertDisplay();
 }
 

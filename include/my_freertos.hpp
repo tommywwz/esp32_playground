@@ -19,25 +19,16 @@
 
 void taskDisplay(void *pvParameters)
 {
-    int8_t f, icons[NUMFLAKES][3];
-    
     TickType_t xLastWakeTime;
-    const TickType_t xFrequency = DELAY_5MS;
+    const TickType_t xFrequency = pdMS_TO_TICKS(5);
     xLastWakeTime = xTaskGetTickCount();
 
-    // Initialize 'snowflake' positions
-    for (f = 0; f < NUMFLAKES; f++)
-    {
-        icons[f][XPOS] = random(1 - LOGO_WIDTH, display.width());
-        icons[f][YPOS] = -LOGO_HEIGHT;
-        icons[f][DELTAY] = random(1, 6);
-        Serial.print(F("x: "));
-        Serial.print(icons[f][XPOS], DEC);
-        Serial.print(F(" y: "));
-        Serial.print(icons[f][YPOS], DEC);
-        Serial.print(F(" dy: "));
-        Serial.println(icons[f][DELTAY], DEC);
-    }
+    auto halfWidth = SCREEN_WIDTH / 2;
+    auto halfHeight = SCREEN_HEIGHT / 2;
+    int16_t posX = halfWidth;
+    int16_t posY = halfHeight;
+    int16_t rad = 5;
+    double scalingFactor = 0.3;
 
     while (1)
     {
@@ -45,7 +36,12 @@ void taskDisplay(void *pvParameters)
         auto currTick = xTaskGetTickCount();
         display.clearDisplay(); // Clear the display buffer
 
-        auto refreshRate = 1000 / (currTick - xLastWakeTime);
+        auto diff = currTick - xLastWakeTime;
+        auto refreshRate = 1000;
+        if (diff)
+        {
+            refreshRate = 1000 / diff;
+        }
 
         xLastWakeTime = currTick;
 
@@ -53,31 +49,41 @@ void taskDisplay(void *pvParameters)
         display.setCursor(0, 0);
         display.setTextSize(1);
         display.setTextColor(SSD1306_WHITE);
-        display.print("Refresh Rate: ");
         display.print(refreshRate);
-        display.print(" Hz");
+        display.print(" fps");
 
-        // Draw each snowflake:
-        for (f = 0; f < NUMFLAKES; f++)
+        auto acc_x = accX * scalingFactor;
+        auto acc_y = accY * scalingFactor;
+
+        auto vel_x = -acc_y * diff;
+        auto vel_y = -acc_x * diff;
+
+        // calculate the new position of the circle
+        posX += vel_x;
+        posY += vel_y;
+
+        // check if the circle is out of the screen
+        if (posX <= rad)
         {
-            display.drawBitmap(icons[f][XPOS], icons[f][YPOS], logo_bmp, LOGO_WIDTH, LOGO_HEIGHT, SSD1306_WHITE);
+            posX = rad;
+        }
+        if (posX >= SCREEN_WIDTH - rad - 1)
+        {
+            posX = SCREEN_WIDTH - rad - 1;
+        }
+        if (posY <= rad)
+        {
+            posY = rad;
+        }
+        if (posY >= SCREEN_HEIGHT - rad - 1)
+        {
+            posY = SCREEN_HEIGHT - rad - 1;
         }
 
-        display.display(); // Show the display buffer on the screen
+        display.drawCircle(posX, posY, rad, SSD1306_WHITE);
+        display.display();
 
-        // Then update coordinates of each flake...
-        for (f = 0; f < NUMFLAKES; f++)
-        {
-            icons[f][YPOS] += icons[f][DELTAY];
-            // If snowflake is off the bottom of the screen...
-            if (icons[f][YPOS] >= display.height())
-            {
-                // Reinitialize to a random position, just off the top
-                icons[f][XPOS] = random(1 - LOGO_WIDTH, display.width());
-                icons[f][YPOS] = -LOGO_HEIGHT;
-                icons[f][DELTAY] = random(1, 6);
-            }
-        }
+
         vTaskDelay(xFrequency);
     }
 }
@@ -85,42 +91,43 @@ void taskDisplay(void *pvParameters)
 void taskSampleIMU(void *pvParameters)
 {
     TickType_t xLastWakeTime;
-    const TickType_t xFrequency = DELAY_5MS;
+    const TickType_t xFrequency = pdMS_TO_TICKS(10);
 
+    sensors_event_t a, g, temp;
     xLastWakeTime = xTaskGetTickCount();
     while (1)
     {
-        sensors_event_t a, g, temp;
         mpu.getEvent(&a, &g, &temp);
 
-
-        Serial.println("IMU Sensor Data:");
+        // Serial.println("IMU Sensor Data:");
         // Print out the values
-        Serial.print("Acceleration X: ");
-        Serial.print(a.acceleration.x);
-        Serial.print(", Y: ");
-        Serial.print(a.acceleration.y);
-        Serial.print(", Z: ");
-        Serial.print(a.acceleration.z);
-        Serial.println(" m/s^2");
+        Serial.print(">Acceleration X (m/s^2): ");
+        Serial.println(a.acceleration.x);
+        Serial.print(">Acceleration Y (m/s^2): ");
+        Serial.println(a.acceleration.y);
+        Serial.print(">Acceleration Z (m/s^2): ");
+        Serial.println(a.acceleration.z);
 
-        Serial.print("Rotation X: ");
-        Serial.print(g.gyro.x);
-        Serial.print(", Y: ");
-        Serial.print(g.gyro.y);
-        Serial.print(", Z: ");
-        Serial.print(g.gyro.z);
-        Serial.println(" rad/s");
+        // Serial.print("Rotation X: ");
+        // Serial.print(g.gyro.x);
+        // Serial.print(", Y: ");
+        // Serial.print(g.gyro.y);
+        // Serial.print(", Z: ");
+        // Serial.print(g.gyro.z);
+        // Serial.println(" rad/s");
 
-        Serial.print("Temperature: ");
-        Serial.print(temp.temperature);
-        Serial.println(" degC");
+        // Serial.print("Temperature: ");
+        // Serial.print(temp.temperature);
+        // Serial.println(" degC");
 
-        getAngle(a.acceleration.x, a.acceleration.y, a.acceleration.z);
-        Serial.print("Pitch: ");
-        Serial.print(pitch);
-        Serial.print(", Roll: ");
-        Serial.println(roll);
+        accX = a.acceleration.x;
+        accY = a.acceleration.y;
+        accZ = a.acceleration.z;
+        // getAngle(a);
+        // Serial.print(">Pitch:");
+        // Serial.println(pitch);
+        // Serial.print(">Roll:");
+        // Serial.println(roll);
         
 
         Serial.println("");
