@@ -17,6 +17,8 @@
 #define DELAY_33MS 33 / portTICK_PERIOD_MS
 #define DELAY_16MS 16 / portTICK_PERIOD_MS
 
+SemaphoreHandle_t xMutexAccel;
+
 void taskDisplay(void *pvParameters)
 {
     TickType_t xLastWakeTime;
@@ -28,7 +30,8 @@ void taskDisplay(void *pvParameters)
     int16_t posX = halfWidth;
     int16_t posY = halfHeight;
     int16_t rad = 5;
-    double scalingFactor = 0.3;
+    double scalingFactor = 0.2;
+    double acc_x, acc_y, vel_x, vel_y = 0.0;
 
     while (1)
     {
@@ -52,11 +55,16 @@ void taskDisplay(void *pvParameters)
         display.print(refreshRate);
         display.print(" fps");
 
-        auto acc_x = accX * scalingFactor;
-        auto acc_y = accY * scalingFactor;
+        if (xSemaphoreTake(xMutexAccel, portMAX_DELAY) == pdTRUE)
+        {
+            
+            acc_x = accX * scalingFactor;
+            acc_y = accY * scalingFactor;
+            xSemaphoreGive(xMutexAccel);
+        }
 
-        auto vel_x = -acc_y * diff;
-        auto vel_y = -acc_x * diff;
+        vel_x = -acc_y * diff;
+        vel_y = -acc_x * diff;
 
         // calculate the new position of the circle
         posX += vel_x;
@@ -120,9 +128,13 @@ void taskSampleIMU(void *pvParameters)
         // Serial.print(temp.temperature);
         // Serial.println(" degC");
 
-        accX = a.acceleration.x;
-        accY = a.acceleration.y;
-        accZ = a.acceleration.z;
+        if (xSemaphoreTake(xMutexAccel, portMAX_DELAY) == pdTRUE)
+        {
+            accX = a.acceleration.x;
+            accY = a.acceleration.y;
+            accZ = a.acceleration.z;
+            xSemaphoreGive(xMutexAccel);
+        }
         // getAngle(a);
         // Serial.print(">Pitch:");
         // Serial.println(pitch);
@@ -170,6 +182,7 @@ void setupTasks()
         NULL,          /* Task handle. */
         1);            /* Core ID */
 
+    xMutexAccel = xSemaphoreCreateMutex();
 }
 
 #endif
